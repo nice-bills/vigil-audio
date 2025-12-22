@@ -13,7 +13,7 @@ def build_all_features(metadata_path, output_dir):
     df = pd.read_csv(metadata_path)
     extractor = AudioFeatureExtractor()
     
-    print(f"📊 Starting bulk extraction for {len(df)} files...")
+    print(f"Starting bulk extraction for {len(df)} files...")
     
     # 2. Loop with progress bar
     # We use a custom naming scheme: {split}_{original_filename}.npy
@@ -32,8 +32,8 @@ def build_all_features(metadata_path, output_dir):
         if embedding is not None:
             np.save(embedding_path, embedding)
 
-    print(f"\n✅ Bulk Extraction Complete!")
-    print(f"📍 Embeddings saved to: {output_dir.absolute()}")
+    print(f"\nBulk Extraction Complete!")
+    print(f"Embeddings saved to: {output_dir.absolute()}")
 
 if __name__ == "__main__":
     METADATA = "data/processed/metadata.csv"
@@ -42,4 +42,4 @@ if __name__ == "__main__":
     if os.path.exists(METADATA):
         build_all_features(METADATA, OUTPUT)
     else:
-        print("❌ Metadata not found. Run harmonize.py first.")
+        print("Metadata not found. Run harmonize.py first.")

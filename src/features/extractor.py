@@ -12,8 +12,8 @@ class AudioFeatureExtractor:
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
-        print(f"🚀 Loading model: {model_name}...")
-        print(f"📦 Cache directory: {self.cache_dir.absolute()}")
+        print(f"Loading model: {model_name}...")
+        print(f"Cache directory: {self.cache_dir.absolute()}")
         
         # Load processor and model with explicit cache_dir
         self.processor = Wav2Vec2Processor.from_pretrained(model_name, cache_dir=self.cache_dir)
@@ -24,7 +24,7 @@ class AudioFeatureExtractor:
         self.model.to(self.device)
         self.model.eval()
         
-        print(f"✅ Model loaded on {self.device}")
+        print(f"Model loaded on {self.device}")
 
     def extract(self, audio_path):
         """
@@ -48,7 +48,7 @@ class AudioFeatureExtractor:
             return embeddings.cpu().numpy().flatten()
             
         except Exception as e:
-            print(f"❌ Error extracting features from {audio_path}: {e}")
+            print(f"Error extracting features from {audio_path}: {e}")
             return None
 
 if __name__ == "__main__":
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         if embedding is not None:
             print(f"\n✨ Success!")
             print(f"File: {sample_path}")
-            print(f"Embedding shape: {embedding.shape}") # Should be (768,)
+            print(f"Embedding shape: {embedding.shape}")
             print(f"First 5 values: {embedding[:5]}")
     else:
-        print("❌ Metadata not found. Please run harmonization first.")
+        print("Metadata not found. Please run harmonization first.")

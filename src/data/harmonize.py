@@ -6,7 +6,7 @@ from tqdm import tqdm
 import librosa
 
 def harmonize_data(raw_data_path, output_path):
-    print(f"🔍 Scanning directory: {raw_data_path}")
+    print(f"Scanning directory: {raw_data_path}")
     
     data = []
     # Folder names are our labels
@@ -20,7 +20,7 @@ def harmonize_data(raw_data_path, output_path):
         folder_path = Path(raw_data_path) / folder
         files = list(folder_path.glob("*.wav"))
         
-        print(f"📂 Processing {folder}: {len(files)} files")
+        print(f"Processing {folder}: {len(files)} files")
         
         for file_path in tqdm(files, desc=f"Processing {folder}"):
             try:
@@ -33,16 +33,16 @@ def harmonize_data(raw_data_path, output_path):
                         "path": str(file_path.absolute())
                     })
             except Exception as e:
-                print(f"❌ Error processing {file_path}: {e}")
+                print(f"Error processing {file_path}: {e}")
 
     df = pd.DataFrame(data)
     
     if df.empty:
-        print("❌ No data found! Please check the raw_data_path.")
+        print("No data found! Please check the raw_data_path.")
         return
 
     # --- Stratified Splitting (80/10/10) ---
-    print("\n⚖️ Creating stratified splits...")
+    print("\nCreating stratified splits...")
     
     # First split: Train vs Temp (20%)
     train_df, temp_df = train_test_split(
@@ -66,9 +66,9 @@ def harmonize_data(raw_data_path, output_path):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     final_df.to_csv(output_path, index=False)
     
-    print(f"\n✅ Harmonization Complete!")
-    print(f"📊 Total files: {len(final_df)}")
-    print(f"📍 Metadata saved to: {output_path}")
+    print(f"\nHarmonization Complete!")
+    print(f"Total files: {len(final_df)}")
+    print(f"Metadata saved to: {output_path}")
     print("\nSplit Statistics:")
     print(final_df.groupby(['split', 'emotion']).size().unstack(fill_value=0))
 
