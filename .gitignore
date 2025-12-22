@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+
+# Hugging Face Cache
+models/hub/
+
+# Derived Data (re-generate with scripts)
+data/embeddings/
+
+# Local data (if you add any)
+data/raw/
+uploads/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+
+ROADMAP.md
+
+.python-version
