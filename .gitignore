@@ -5,15 +5,24 @@ __pycache__/
 *.pyd
 .venv/
 
-# Hugging Face Cache
+# Model Files (DO NOT COMMIT)
 models/hub/
+models/wav2vec2-finetuned/
+models/*.pth
+models/*.pt
+models/*.safetensors
+models/*.bin
 
 # Derived Data (re-generate with scripts)
 data/embeddings/
 
-# Local data (if you add any)
+# Local data / Uploads
 data/raw/
 uploads/
+
+# Documentation (Private)
+ROADMAP.md
+PROJECT_LOG.md
 
 # IDE
 .vscode/
@@ -21,11 +30,4 @@ uploads/
 
 # Environment
 .env
-
-ROADMAP.md
-
 .python-version
-
-PROJECT_LOG.md
-
-models/
