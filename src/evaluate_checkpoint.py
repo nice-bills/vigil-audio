@@ -8,16 +8,16 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 from tqdm import tqdm
 
 def evaluate_model(model_path="models/wav2vec2-finetuned", metadata_path="data/processed/metadata.csv"):
-    print(f"🧐 Evaluating model at: {model_path}")
+    print(f"Evaluating model at: {model_path}")
     
     # 1. Load Config to get TRUE labels
     try:
         config = AutoConfig.from_pretrained(model_path)
         id2label = config.id2label
         label2id = config.label2id
-        print(f"✅ Loaded Label Map from Config: {label2id}")
+        print(f"Loaded Label Map from Config: {label2id}")
     except Exception as e:
-        print(f"❌ Error loading config: {e}")
+        print(f"Error loading config: {e}")
         return
 
     # 2. Load Model & Extractor
@@ -28,19 +28,19 @@ def evaluate_model(model_path="models/wav2vec2-finetuned", metadata_path="data/p
         model.to(device)
         model.eval()
     except Exception as e:
-        print(f"❌ Error loading weights: {e}")
+        print(f"Error loading weights: {e}")
         return
 
     # 3. Load Metadata
     if not os.path.exists(metadata_path):
-        print(f"❌ Metadata not found at {metadata_path}")
+        print(f"Metadata not found at {metadata_path}")
         return
     
     df = pd.read_csv(metadata_path)
     # Test on 100 samples
     test_df = df[df['split'] == 'test'].sample(min(100, len(df[df['split'] == 'test'])), random_state=42)
     
-    print(f"📊 Testing on {len(test_df)} samples...")
+    print(f"Testing on {len(test_df)} samples...")
 
     y_true = []
     y_pred = []
@@ -55,7 +55,7 @@ def evaluate_model(model_path="models/wav2vec2-finetuned", metadata_path="data/p
             true_label_str = "surprised"
             
         if true_label_str not in label2id:
-            print(f"⚠️ Warning: Label '{true_label_str}' not in model config. Skipping.")
+            print(f"Warning: Label '{true_label_str}' not in model config. Skipping.")
             continue
             
         target_id = label2id[true_label_str]
@@ -89,11 +89,11 @@ def evaluate_model(model_path="models/wav2vec2-finetuned", metadata_path="data/p
 
     # 5. Results
     if not y_true:
-        print("❌ No files processed.")
+        print("No files processed.")
         return
 
     acc = accuracy_score(y_true, y_pred)
-    print(f"\n🚀 FINAL ACCURACY: {acc:.2%}")
+    print(f"\nFINAL ACCURACY: {acc:.2%}")
     
     # Map IDs back to names for the report
     target_names = [id2label[i] for i in sorted(id2label.keys())]
