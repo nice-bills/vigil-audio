@@ -64,7 +64,7 @@ if __name__ == "__main__":
         embedding = extractor.extract(sample_path)
         
         if embedding is not None:
-            print(f"\n✨ Success!")
+            print(f"\nSuccess!")
             print(f"File: {sample_path}")
             print(f"Embedding shape: {embedding.shape}")
             print(f"First 5 values: {embedding[:5]}")
