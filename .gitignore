@@ -12,7 +12,7 @@ models/*.pth
 models/*.pt
 models/*.safetensors
 models/*.bin
-
+models/
 # Derived Data (re-generate with scripts)
 data/embeddings/
 
