@@ -2,77 +2,104 @@
 
 **A production-ready audio emotion classification system built for content moderation.**
 
-VigilAudio is the first phase of a multimodal moderation suite designed to detect distress, aggression, and safety risks in user-generated content. Unlike traditional moderators that look for keywords, VigilAudio listens to the *tone* of the voice—detecting anger, fear, or distress even when the words themselves are neutral.
+VigilAudio is an advanced audio analysis engine designed to detect aggression, distress, and safety risks by analyzing the *tone* of voice. It is the audio foundation of a multimodal moderation suite, utilizing fine-tuned Transformers and optimized for high-speed CPU inference.
 
-## Key Features
+![Dashboard](docs/screenshot_placeholder.png)
 
-*   **State-of-the-Art Architecture:** Fine-tuned `facebook/wav2vec2-base-960h` Transformer model.
-*   **High Accuracy:** Achieved **82% accuracy** on a 7-class emotion dataset (Angry, Happy, Sad, Fearful, Disgusted, Neutral, Surprised).
-*   **Production Pipeline:** End-to-end data harmonization, stratified splitting, and efficient feature extraction.
-*   **Cloud-Native Training:** Optimized training scripts for Google Colab (T4 GPU), reducing training time from 50+ hours to <20 minutes.
+## Dataset & Results
 
-## Technology Stack
+*   **Source:** [Kaggle - Audio Emotions Dataset](https://www.kaggle.com/datasets/uldisvalainis/audio-emotions) (12,798 recordings).
+*   **Architecture:** Fine-tuned `Wav2Vec2` Transformer.
+*   **Accuracy:** **83%** (PyTorch) / **84%** (Optimized INT8 ONNX).
+*   **Optimization:** 1.85x speedup and 67% size reduction via INT8 Quantization.
 
-*   **Language:** Python 3.10+
-*   **Environment:** `uv` (for fast dependency management)
-*   **ML Framework:** PyTorch, Hugging Face Transformers, Accelerate
-*   **Audio Processing:** Librosa, Soundfile
-*   **Data Ops:** Pandas, Scikit-learn
+---
 
-## Installation
+## Prerequisites
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/yourusername/vigilaudio.git
-    cd vigilaudio
-    ```
+*   **Python 3.10+**
+*   **uv:** [Install uv](https://docs.astral.sh/uv/getting-started/installation/) (recommended for environment management).
+*   **FFMPEG:** Required for audio processing.
+    *   *Windows:* `winget install ffmpeg`
+    *   *Linux:* `sudo apt install ffmpeg`
 
-2.  **Initialize the environment:**
-    We use `uv` for lightning-fast setups.
-    ```bash
-    uv sync
-    ```
+---
 
-## Execution Guide
+## How to Run (Quick Start)
 
-### 1. Data Pipeline (Harmonization)
-Turn raw, messy folders into a clean, stratified dataset.
+### 1. Setup Environment
+```bash
+git clone https://github.com/yourusername/vigilaudio.git
+cd vigilaudio
+uv sync
+```
+
+### 2. Download Model Weights
+Because model weights are large, they are not stored in Git.
+1. Download `wav2vec2_model.zip` from [Your Link/Releases].
+2. Extract to `models/onnx_quantized/`.
+
+### 3. Launch the Application
+Run the standalone demo (recommended for local testing):
+```bash
+uv run streamlit run src/ui/app_standalone.py
+```
+*   **Access:** `http://localhost:8501`
+
+---
+
+## Development Workflow
+
+If you want to retrain or modify the system:
+
+### 1. Data Preparation
+1. Download the [Kaggle Dataset](https://www.kaggle.com/datasets/uldisvalainis/audio-emotions).
+2. Place the folders (Angry, Happy, etc.) in `data/raw/Emotions/`.
+3. Run harmonization:
 ```bash
 uv run src/data/harmonize.py
 ```
-*   **Input:** Raw audio folders (`Emotions/Angry`, `Emotions/Happy`...)
-*   **Output:** `data/processed/metadata.csv` (Unified labels + 80/10/10 splits)
 
-### 2. Feature Extraction (Local Test)
-Verify that your machine can process audio using the Wav2Vec2 processor.
+### 2. Model Training (Cloud Accelerated)
+We use Google Colab (T4 GPU) for high-speed fine-tuning.
+*   The training script and notebook are in `docs/VigilAudio_Fine_Tuning.ipynb`.
+
+### 3. Optimization & Benchmarking
+Convert to ONNX and verify performance:
 ```bash
-uv run src/features/extractor.py
+uv run src/models/optimize.py
+uv run src/models/benchmark.py
 ```
-*   **Output:** Prints the embedding shape `(768,)` for a sample file.
 
-### 3. Model Training (The "Professional" Way)
-Training a Transformer on a CPU is too slow. We use Google Colab.
+---
 
-1.  Upload `train_colab.py` and your `Emotions` folder to Google Drive.
-2.  Open `VigilAudio_Fine_Tuning.ipynb` in Colab.
-3.  Set Runtime to **T4 GPU**.
-4.  Run the training script.
-    *   **Result:** A fine-tuned model saved to `wav2vec2-finetuned/`.
-    *   **Performance:** ~82% Accuracy / 0.81 F1 Score.
+## Project Structure
 
-## Dataset
+```text
+vigilaudio/
+├── data/                   # Dataset storage
+│   ├── raw/                # Original audio files (excluded from Git)
+│   └── processed/          # Metadata and splits
+├── models/                 # Model registry
+│   ├── wav2vec2-finetuned/ # PyTorch weights
+│   └── onnx_quantized/     # Optimized INT8 engine
+├── src/
+│   ├── api/                # FastAPI backend service
+│   ├── data/               # ETL and harmonization scripts
+│   ├── features/           # Audio feature extraction
+│   ├── models/             # Training, Inference, and Optimization logic
+│   └── ui/                 # Streamlit frontend dashboards
+├── docs/                   # Benchmarks, Logs, and Colab Notebooks
+└── notebooks/              # Experimental EDA
+```
 
-The model was trained on a combined dataset of **12,798 audio recordings** across 7 emotions.
-*   **Source:** [Kaggle - Audio Emotions Dataset](https://www.kaggle.com/datasets/uldisvalainis/audio-emotions)
-*   **Composition:** An amalgam of CREMA-D, TESS, RAVDESS, and SAVEE datasets.
+## Performance Optimization (ONNX)
 
-## Results Summary
-
-| Model | Architecture | Training Time | Accuracy |
-|-------|--------------|---------------|----------|
-| Baseline | Simple MLP (CPU) | ~3 hours | 54% |
-| **VigilAudio** | **Fine-Tuned Wav2Vec2 (GPU)** | **17 mins** | **82%** |
+| Model Version | Accuracy | Latency (ms) | Speedup | Size (MB) |
+|---------------|----------|--------------|---------|-----------|
+| PyTorch (Full) | 82.0% | 370ms | 1.00x | 361MB |
+| ONNX (Standard)| 82.0% | 306ms | 1.21x | 361MB |
+| **ONNX (INT8)** | **84.0%** | **199ms** | **1.85x** | **116MB** |
 
 ## License
-
 MIT

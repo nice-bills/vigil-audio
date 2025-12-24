@@ -1,0 +1,4 @@
+Model,Accuracy,Latency (Avg ms),Speedup,Size (MB)
+PyTorch (Full),82.00%,369.98ms,1.00x,360.8MB
+ONNX (Standard),82.00%,306.52ms,1.21x,361.0MB
+ONNX (INT8 Quantized),84.00%,199.46ms,1.85x,116.5MB
