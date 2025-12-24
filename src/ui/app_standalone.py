@@ -56,20 +56,31 @@ id2label = model.config.id2label if model else {}
 st.title("VigilAudio: Standalone Emotion Analyzer")
 st.markdown("---")
 
-# --- MAIN UPLOAD ---
-uploaded_file = st.file_uploader("Upload Audio File (WAV, MP3)", type=["wav", "mp3", "m4a"])
+# --- MAIN UPLOAD & RECORD ---
+col_upload, col_record = st.columns(2)
+with col_upload:
+    uploaded_file = st.file_uploader("📂 Upload Audio File", type=["wav", "mp3", "m4a"])
+with col_record:
+    recorded_audio = st.audio_input("🎙️ Record Voice")
+
+# Logic to prioritize recording if both exist
+audio_source = recorded_audio if recorded_audio else uploaded_file
 
 # --- MAIN CONTENT ---
-if uploaded_file is not None and model is not None:
+if audio_source is not None and model is not None:
     # Save to temp file to load with librosa
-    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(uploaded_file.name)[1]) as tmp:
-        tmp.write(uploaded_file.getvalue())
+    # Use a generic name if recording, else preserve extension
+    ext = os.path.splitext(audio_source.name)[1] if hasattr(audio_source, 'name') else ".wav"
+    if not ext: ext = ".wav" # Fallback for microphone
+    
+    with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+        tmp.write(audio_source.getvalue())
         tmp_path = tmp.name
 
-    st.audio(uploaded_file)
+    st.audio(audio_source)
     
     # Analyze Button
-    if st.button("Analyze Emotion", type="primary"):
+    if st.button("🚀 Analyze Emotion", type="primary"):
         with st.spinner("Processing audio..."):
             y, sr = librosa.load(tmp_path, sr=16000)
             duration = librosa.get_duration(y=y, sr=sr)
@@ -98,38 +109,63 @@ if uploaded_file is not None and model is not None:
             if not timeline:
                 st.error("Audio too short to analyze.")
             else:
+                # Calculate Emotion Distribution
                 emotions_list = [seg["emotion"] for seg in timeline]
                 dominant = max(set(emotions_list), key=emotions_list.count)
+                
+                # Create Distribution DataFrame
+                dist_counts = pd.Series(emotions_list).value_counts().reset_index()
+                dist_counts.columns = ['emotion', 'count']
+                dist_counts['percentage'] = dist_counts['count'] / len(emotions_list)
                 
                 # --- DISPLAY RESULTS ---
                 col1, col2 = st.columns([1, 2])
                 
+                color_map = {
+                    "angry": "#f48771", "happy": "#89d185", "sad": "#4fc1ff",
+                    "fearful": "#c586c0", "disgusted": "#ce9178", "neutral": "#808080",
+                    "surprised": "#dcdcaa"
+                }
+                
                 with col1:
-                    color_map = {
-                        "angry": "#f48771", "happy": "#89d185", "sad": "#4fc1ff",
-                        "fearful": "#c586c0", "disgusted": "#ce9178", "neutral": "#808080",
-                        "surprised": "#dcdcaa"
-                    }
+                    st.subheader("Summary")
                     color = color_map.get(dominant, "#ffffff")
-                    
                     st.markdown(f"""
-                        <div style="background-color: {color}22; border: 2px solid {color}; text-align: center;" class="emotion-badge">
+                        <div style="background-color: {color}22; border: 2px solid {color}; text-align: center; margin-bottom: 20px;" class="emotion-badge">
                             {dominant}
                         </div>
                     """, unsafe_allow_html=True)
+                    
+                    # Distribution Chart (Pie)
+                    fig_dist = px.pie(
+                        dist_counts, values='count', names='emotion',
+                        color='emotion', color_discrete_map=color_map,
+                        hole=0.4
+                    )
+                    fig_dist.update_layout(
+                        template="plotly_dark",
+                        plot_bgcolor='rgba(0,0,0,0)',
+                        paper_bgcolor='rgba(0,0,0,0)',
+                        margin=dict(l=0, r=0, t=0, b=0),
+                        showlegend=False,
+                        height=200
+                    )
+                    st.plotly_chart(fig_dist, use_container_width=True)
                 
                 with col2:
+                    st.subheader("Timeline Analysis")
                     timeline_df = pd.DataFrame(timeline)
                     fig_timeline = px.bar(
                         timeline_df, x="start_sec", y="confidence", color="emotion",
-                        color_discrete_map=color_map, title="Emotion Timeline",
+                        color_discrete_map=color_map, 
                         labels={"start_sec": "Time (s)", "confidence": "Confidence"}
                     )
                     fig_timeline.update_layout(
                         template="plotly_dark", 
                         plot_bgcolor='rgba(0,0,0,0)', 
                         paper_bgcolor='rgba(0,0,0,0)',
-                        margin=dict(l=0, r=0, t=30, b=0)
+                        margin=dict(l=0, r=0, t=0, b=0),
+                        height=300
                     )
                     st.plotly_chart(fig_timeline, use_container_width=True)
 

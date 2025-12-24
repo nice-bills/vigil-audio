@@ -1,10 +1,9 @@
 import streamlit as st
 import requests
-import plotly.express as pd
+import plotly.express as px
 import pandas as pd
-import librosa
 import numpy as np
-import matplotlib.pyplot as plt
+import os
 
 # --- CONFIG ---
 API_URL = "http://localhost:8000/predict"
@@ -31,81 +30,105 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- UI HEADER ---
-st.title("VigilAudio: Emotion Analytics")
+st.title("🛡️ VigilAudio: Emotion Analytics")
 st.markdown("---")
 
-# --- SIDEBAR ---
-with st.sidebar:
-    st.header("Upload Control")
-    uploaded_file = st.file_uploader("Choose an audio file", type=["wav", "mp3", "m4a"])
-    st.info("The system analyzes tone and distress patterns across the entire duration.")
+# --- MAIN UPLOAD & RECORD ---
+col_upload, col_record = st.columns(2)
+with col_upload:
+    uploaded_file = st.file_uploader("📂 Upload Audio File", type=["wav", "mp3", "m4a"])
+with col_record:
+    recorded_audio = st.audio_input("🎙️ Record Voice")
+
+# Logic to prioritize recording if both exist
+audio_source = recorded_audio if recorded_audio else uploaded_file
 
 # --- MAIN CONTENT ---
-if uploaded_file is not None:
-    col1, col2 = st.columns([1, 2])
+if audio_source is not None:
+    st.audio(audio_source)
 
-    with col1:
-        st.subheader("Audio Source")
-        st.audio(uploaded_file)
-        
-        # Load audio for waveform visualization
-        y, sr = librosa.load(uploaded_file, sr=16000)
-        fig, ax = plt.subplots(figsize=(10, 3))
-        ax.plot(np.linspace(0, len(y)/sr, len(y)), y, color='#1f77b4', alpha=0.7)
-        ax.set_axis_off()
-        fig.patch.set_facecolor('#0e1117')
-        st.pyplot(fig)
-
-    if st.button("Analyze Emotion"):
-        with st.spinner("Analyzing audio segments..."):
+    if st.button("🚀 Analyze Emotion", type="primary"):
+        with st.spinner("Sending to VigilAudio API..."):
             # 1. Send to FastAPI
-            files = {"file": (uploaded_file.name, uploaded_file.getvalue())}
-            response = requests.post(API_URL, files=files)
+            # We use a generic filename if recording
+            filename = audio_source.name if hasattr(audio_source, 'name') else "recording.wav"
+            files = {"file": (filename, audio_source.getvalue())}
             
-            if response.status_code == 200:
-                data = response.json()
+            try:
+                response = requests.post(API_URL, files=files)
                 
-                with col2:
-                    st.subheader("Classification Results")
+                if response.status_code == 200:
+                    data = response.json()
                     
-                    # 2. Prominent Result
+                    # --- PROCESS RESULTS ---
                     dominant = data['dominant_emotion']
+                    timeline = data['timeline']
+                    
+                    # Calculate Distribution
+                    emotions_list = [seg["emotion"] for seg in timeline]
+                    dist_counts = pd.Series(emotions_list).value_counts().reset_index()
+                    dist_counts.columns = ['emotion', 'count']
+                    
+                    # --- DISPLAY ---
+                    col1, col2 = st.columns([1, 2])
+                    
                     color_map = {
                         "angry": "#f48771", "happy": "#89d185", "sad": "#4fc1ff",
                         "fearful": "#c586c0", "disgusted": "#ce9178", "neutral": "#808080",
                         "surprised": "#dcdcaa"
                     }
-                    color = color_map.get(dominant, "#ffffff")
                     
-                    st.markdown(f"""
-                        <div style="background-color: {color}22; border: 2px solid {color};" class="emotion-badge">
-                            Detected Emotion: <span style="color: {color};">{dominant}</span>
-                        </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # 3. Timeline Plot
-                    st.markdown("#### Emotion Timeline")
-                    timeline_df = pd.DataFrame(data['timeline'])
-                    
-                    # Plotly chart
-                    fig_timeline = pd.bar(
-                        timeline_df, 
-                        x="start_sec", 
-                        y="confidence", 
-                        color="emotion",
-                        color_discrete_map=color_map,
-                        title="Confidence by Segment (3s windows)",
-                        labels={"start_sec": "Time (seconds)", "confidence": "Probability"}
-                    )
-                    fig_timeline.update_layout(template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)')
-                    st.plotly_chart(fig_timeline, use_container_width=True)
-                    
-                    # 4. Detailed Data
-                    with st.expander("View Raw JSON Response"):
+                    with col1:
+                        st.subheader("Summary")
+                        color = color_map.get(dominant, "#ffffff")
+                        
+                        st.markdown(f"""
+                            <div style="background-color: {color}22; border: 2px solid {color}; text-align: center; margin-bottom: 20px;" class="emotion-badge">
+                                {dominant}
+                            </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # Pie Chart
+                        fig_dist = px.pie(
+                            dist_counts, values='count', names='emotion',
+                            color='emotion', color_discrete_map=color_map,
+                            hole=0.4
+                        )
+                        fig_dist.update_layout(
+                            template="plotly_dark",
+                            plot_bgcolor='rgba(0,0,0,0)',
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            margin=dict(l=0, r=0, t=0, b=0),
+                            showlegend=False,
+                            height=200
+                        )
+                        st.plotly_chart(fig_dist, use_container_width=True)
+                        
+                    with col2:
+                        st.subheader("Timeline Analysis")
+                        timeline_df = pd.DataFrame(timeline)
+                        fig_timeline = px.bar(
+                            timeline_df, x="start_sec", y="confidence", color="emotion",
+                            color_discrete_map=color_map, 
+                            labels={"start_sec": "Time (s)", "confidence": "Confidence"}
+                        )
+                        fig_timeline.update_layout(
+                            template="plotly_dark", 
+                            plot_bgcolor='rgba(0,0,0,0)', 
+                            paper_bgcolor='rgba(0,0,0,0)',
+                            margin=dict(l=0, r=0, t=0, b=0),
+                            height=300
+                        )
+                        st.plotly_chart(fig_timeline, use_container_width=True)
+                        
+                    # Raw JSON
+                    with st.expander("View API Response"):
                         st.json(data)
-            else:
-                st.error(f"API Error: {response.text}")
+                        
+                else:
+                    st.error(f"API Error: {response.text}")
+            except Exception as e:
+                st.error(f"Connection Error: {e}. Is the API running?")
 
 else:
-    st.info("Welcome! Please upload an audio file in the sidebar to begin moderation analysis.")
-    st.image("https://images.unsplash.com/photo-1589254065878-42c9da997008?auto=format&fit=crop&w=1000&q=80", caption="VigilAudio ensures safety in audio streams.")
+    st.info("👆 Upload an audio file or record your voice to begin.")
