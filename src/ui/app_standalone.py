@@ -59,9 +59,9 @@ st.markdown("---")
 # --- MAIN UPLOAD & RECORD ---
 col_upload, col_record = st.columns(2)
 with col_upload:
-    uploaded_file = st.file_uploader("📂 Upload Audio File", type=["wav", "mp3", "m4a"])
+    uploaded_file = st.file_uploader("Upload Audio File", type=["wav", "mp3", "m4a"])
 with col_record:
-    recorded_audio = st.audio_input("🎙️ Record Voice")
+    recorded_audio = st.audio_input("Record Voice")
 
 # Logic to prioritize recording if both exist
 audio_source = recorded_audio if recorded_audio else uploaded_file
@@ -80,7 +80,7 @@ if audio_source is not None and model is not None:
     st.audio(audio_source)
     
     # Analyze Button
-    if st.button("🚀 Analyze Emotion", type="primary"):
+    if st.button("Analyze Emotion", type="primary"):
         with st.spinner("Processing audio..."):
             y, sr = librosa.load(tmp_path, sr=16000)
             duration = librosa.get_duration(y=y, sr=sr)
