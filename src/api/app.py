@@ -150,7 +150,7 @@ async def predict_emotion(file: UploadFile = File(...)):
 @app.websocket("/stream/audio")
 async def stream_audio(websocket: WebSocket, rate: int = 16000):
     await websocket.accept()
-    print(f"🔌 WebSocket Connected (Input Rate: {rate}Hz)")
+    print(f"WebSocket Connected (Input Rate: {rate}Hz)")
     buffer = AudioStreamBuffer()
     
     # Pre-configure resampler if rate != 16000
@@ -194,9 +194,9 @@ async def stream_audio(websocket: WebSocket, rate: int = 16000):
                 await websocket.send_json(response)
                 
     except WebSocketDisconnect:
-        print("🔌 WebSocket Disconnected")
+        print("WebSocket Disconnected")
     except Exception as e:
-        print(f"❌ WebSocket Error: {e}")
+        print(f"WebSocket Error: {e}")
         try:
             await websocket.close()
         except: pass
