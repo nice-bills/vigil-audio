@@ -44,7 +44,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- UI HEADER ---
-st.title("VigilAudio: Moderation Dashboard")
+st.title("VigilAudio")
 st.caption("ML-Powered Content Safety Engine (Microservices Architecture)")
 st.markdown("---")
 

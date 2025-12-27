@@ -4,11 +4,11 @@
 
 VigilAudio is an advanced audio analysis engine designed to detect aggression, distress, and safety risks by analyzing the *tone* of voice. It is the audio foundation of a multimodal moderation suite, utilizing fine-tuned Transformers and optimized for high-speed CPU inference.
 
-![Dashboard](docs/screenshot_placeholder.png)
+![Dashboard](docs/screenshot.png)
 
 ## Key Features
 
-*   **State-of-the-Art Architecture:** Fine-tuned `Wav2Vec2` Transformer (84% Accuracy).
+*   **State-of-the-Art Architecture:** Fine-tuned Quantized `Wav2Vec2` Transformer (84% Accuracy).
 *   **Real-time Streaming:** WebSocket API for low-latency audio processing (199ms).
 *   **Active Learning:** Automatically captures low-confidence samples to build a "Data Flywheel."
 *   **Moderation Alerts:** UI automatically flags high-intensity negative emotions (Anger, Fear).
@@ -19,6 +19,7 @@ VigilAudio is an advanced audio analysis engine designed to detect aggression, d
 | Model Version | Accuracy | Latency (ms) | Speedup | Size (MB) |
 |---------------|----------|--------------|---------|-----------|
 | PyTorch (Full) | 82.0% | 370ms | 1.00x | 361MB |
+| ONNX (Standard) | 82.00% | 306.52ms | 1.21x | 361.0MB |
 | **ONNX (INT8)** | **84.0%** | **199ms** | **1.85x** | **116MB** |
 
 ---

@@ -75,7 +75,7 @@ feature_extractor, model = load_model()
 id2label = model.config.id2label if model else {}
 
 # --- UI HEADER ---
-st.title("VigilAudio: Standalone Moderation Demo")
+st.title("VigilAudio")
 st.caption(f"Edge-Optimized Content Safety Engine (Limit: {MAX_DURATION_SEC}s)")
 st.markdown("---")
 
@@ -104,7 +104,7 @@ if audio_source_bytes is not None and model is not None:
 
     st.audio(audio_source_bytes)
     
-    if st.button("🚀 Analyze Content", type="primary", use_container_width=True):
+    if st.button("Analyze Content", type="primary", use_container_width=True):
         with st.spinner("Analyzing audio context..."):
             y, sr = librosa.load(tmp_path, sr=16000)
             original_duration = librosa.get_duration(y=y, sr=sr)
