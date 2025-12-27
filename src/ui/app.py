@@ -8,10 +8,12 @@ import json
 from audio_recorder_streamlit import audio_recorder
 
 # --- CONFIG ---
-API_URL = "http://localhost:8000/predict"
+# Use environment variables for deployment, fallback to localhost
+API_URL = os.getenv("API_URL", "http://localhost:8000/predict")
+HEALTH_URL = os.getenv("HEALTH_URL", "http://localhost:8000/health")
 
 st.set_page_config(
-    page_title="VigilAudio Moderation Dashboard",
+    page_title="VigilAudio Dashboard",
     layout="wide"
 )
 
@@ -42,46 +44,48 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- UI HEADER ---
-st.title("VigilAudio: Content Moderation Suite")
-st.caption("Automated Tone and Emotion Analysis for Audio Safety")
+st.title("VigilAudio: Moderation Dashboard")
+st.caption("ML-Powered Content Safety Engine (Microservices Architecture)")
 st.markdown("---")
 
-# --- INPUT SECTION ---
-col_input, col_info = st.columns([2, 1])
-
-with col_input:
-    st.subheader("Input Source")
-    c1, c2 = st.columns(2)
-    with c1:
-        uploaded_file = st.file_uploader("Upload Audio Content", type=["wav", "mp3", "m4a"])
-    with c2:
-        st.write("Record Direct Input")
-        recorded_audio_bytes = audio_recorder(text="Start Recording", icon_size="2x")
-
-# Select active source
-audio_source = None
-if recorded_audio_bytes:
-    audio_source = {"name": "live_stream.wav", "bytes": recorded_audio_bytes}
-elif uploaded_file:
-    audio_source = {"name": uploaded_file.name, "bytes": uploaded_file.getvalue()}
-
-with col_info:
-    st.subheader("System Health")
+# --- SYSTEM STATUS SIDEBAR ---
+with st.sidebar:
+    st.header("System Health")
     try:
-        health_resp = requests.get("http://localhost:8000/health")
+        health_resp = requests.get(HEALTH_URL, timeout=2)
         health = health_resp.json()
-        st.success(f"Status: {health['status'].upper()}")
+        st.success(f"Backend: {health['status'].upper()}")
         st.info(f"Engine: {health['engine']}")
+        st.caption(f"Limit: {health['max_duration_limit']}s")
     except:
         st.error("Backend Server Offline")
 
-# --- ANALYSIS AND RESULTS ---
-if audio_source:
-    st.audio(audio_source["bytes"])
+# --- INPUT TABS ---
+tab_upload, tab_mic = st.tabs(["Upload File", "Live Microphone"])
+
+audio_source_bytes = None
+audio_source_name = "recording.wav"
+
+with tab_upload:
+    uploaded_file = st.file_uploader("Upload Audio Content", type=["wav", "mp3", "m4a"], key="api_uploader")
+    if uploaded_file:
+        audio_source_bytes = uploaded_file.getvalue()
+        audio_source_name = uploaded_file.name
+
+with tab_mic:
+    st.write("Capture Live Audio")
+    recorded_audio_bytes = audio_recorder(text="Start Recording", icon_size="2x", key="api_recorder")
+    if recorded_audio_bytes:
+        audio_source_bytes = recorded_audio_bytes
+        audio_source_name = "mic_recording.wav"
+
+# --- MAIN CONTENT ---
+if audio_source_bytes is not None:
+    st.audio(audio_source_bytes)
     
-    if st.button("Analyze Content", type="primary", use_container_width=True):
-        with st.spinner("Performing high-precision audit..."):
-            files = {"file": (audio_source["name"], audio_source["bytes"])}
+    if st.button("Analyze Content", type="primary", use_container_width=True, key="api_analyze_btn"):
+        with st.spinner("Communicating with VigilAudio API..."):
+            files = {"file": (audio_source_name, audio_source_bytes)}
             try:
                 response = requests.post(API_URL, files=files)
                 
@@ -92,6 +96,10 @@ if audio_source:
                     dominant = data['dominant_emotion']
                     timeline = data['timeline']
                     
+                    # Truncation Warning
+                    if data.get('is_truncated'):
+                        st.warning(f"Note: Audio was truncated to 60s for analysis (Original: {data['original_duration']}s)")
+
                     # Moderation Logic: Flag high-confidence negative emotions
                     flagged_emotions = ['angry', 'fearful', 'disgusted']
                     is_flagged = any(seg['emotion'] in flagged_emotions and seg['confidence'] > 0.85 for seg in timeline)
@@ -113,7 +121,7 @@ if audio_source:
                     }
                     
                     with res_col1:
-                        st.subheader("Tone Summary")
+                        st.subheader("Dominant Tone")
                         color = color_map.get(dominant, "#ffffff")
                         st.markdown(f"""
                             <div style="background-color: {color}22; border: 2px solid {color}; color: {color};" class="emotion-badge">
@@ -143,16 +151,17 @@ if audio_source:
                         )
                         fig_timeline.update_layout(
                             template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)', 
-                            paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=0, r=0, t=0, b=0)
+                            paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=0, r=0, t=0, b=0),
+                            height=300
                         )
                         st.plotly_chart(fig_timeline, use_container_width=True)
 
-                    with st.expander("Detailed System Logs"):
+                    with st.expander("Detailed Audit Log"):
                         st.json(data)
                 else:
-                    st.error(f"Prediction failed: {response.text}")
+                    st.error(f"API Error: {response.text}")
             except Exception as e:
-                st.error(f"System Error: {e}")
+                st.error(f"Connection Error: {e}")
 
 else:
-    st.info("System standby. Please provide audio content for safety analysis.")
+    st.info("System standby. Please provide audio content via upload or microphone.")
