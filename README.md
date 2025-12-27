@@ -1,3 +1,19 @@
+---
+title: VigilAudio
+emoji: 🎙️
+colorFrom: red
+colorTo: gray
+sdk: docker
+app_port: 8501
+tags:
+  - streamlit
+  - onnx
+  - audio-classification
+pinned: false
+short_description: Emotional audio classification
+license: mit
+---
+
 # VigilAudio: AI-Powered Audio Moderation Engine
 
 **A production-ready audio emotion classification system built for content moderation.**

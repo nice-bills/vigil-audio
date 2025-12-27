@@ -5,13 +5,17 @@ __pycache__/
 *.pyd
 .venv/
 
-# Model Files (DO NOT COMMIT)
+# Model Files (DO NOT COMMIT heavy weights)
 models/hub/
 models/wav2vec2-finetuned/
 models/*.pth
 models/*.pt
 models/*.safetensors
 models/*.bin
+
+# Allow ONLY the optimized engine for deployment
+!models/onnx_quantized/
+
 models/
 # Derived Data (re-generate with scripts)
 data/embeddings/
