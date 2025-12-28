@@ -21,7 +21,7 @@ MAX_DURATION_SEC = 60.0
 UPLOAD_DIR = "data/uploads/weak_predictions"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-st.set_page_config(page_title="VigilAudio Standalone", layout="wide")
+st.set_page_config(page_title="VigilAudio", layout="wide")
 
 # --- CUSTOM CSS ---
 st.markdown("""
@@ -145,7 +145,7 @@ def process_audio(audio_bytes, source_name):
     os.remove(tmp_path)
 
 # --- UI HEADER ---
-st.title("VigilAudio: Standalone Moderation Suite")
+st.title("VigilAudio")
 st.caption(f"Edge-Optimized Content Safety Engine (Limit: {MAX_DURATION_SEC}s)")
 st.markdown("---")
 
