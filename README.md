@@ -20,8 +20,6 @@ license: mit
 
 VigilAudio is an advanced audio analysis engine designed to detect aggression, distress, and safety risks by analyzing the *tone* of voice. It is the audio foundation of a multimodal moderation suite, utilizing fine-tuned Transformers and optimized for high-speed CPU inference.
 
-![Dashboard](docs/screenshot.png)
-
 ## Key Features
 
 *   **State-of-the-Art Architecture:** Fine-tuned Quantized `Wav2Vec2` Transformer (84% Accuracy).
