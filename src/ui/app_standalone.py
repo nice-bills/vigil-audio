@@ -51,68 +51,99 @@ def save_training_sample(audio_chunk, sr, predicted_emotion, confidence):
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     unique_id = str(uuid.uuid4())[:8]
     filename = f"{timestamp}_{predicted_emotion}_{confidence:.2f}_{unique_id}.wav"
-    try:
-        sf.write(os.path.join(UPLOAD_DIR, filename), audio_chunk, sr)
-    except:
-        pass
+    try: sf.write(os.path.join(UPLOAD_DIR, filename), audio_chunk, sr)
+    except: pass
 
-def process_audio(audio_bytes, source_name):
-    if not audio_bytes or model is None:
-        return
+def run_inference(tmp_path):
+    """Core logic to run inference and return timeline."""
+    y, sr = librosa.load(tmp_path, sr=16000)
+    original_duration = librosa.get_duration(y=y, sr=sr)
+    if original_duration > MAX_DURATION_SEC:
+        y = y[:int(MAX_DURATION_SEC * sr)]
+    
+    duration = librosa.get_duration(y=y, sr=sr)
+    timeline = []
+    chunk_len = int(WINDOW_SIZE_SEC * sr)
+    
+    for i, start in enumerate(range(0, len(y), chunk_len)):
+        chunk = y[start:start + chunk_len]
+        if len(chunk) < 8000: continue
+        
+        inputs = feature_extractor(chunk, sampling_rate=16000, return_tensors="pt", padding=True)
+        with torch.no_grad():
+            outputs = model(**inputs)
+            probs = torch.nn.functional.softmax(outputs.logits, dim=-1)
+            pred_id = torch.argmax(outputs.logits, dim=-1).item()
+            confidence = float(probs[0][pred_id])
+        
+        emotion_label = id2label[pred_id]
+        if confidence < 0.60:
+            save_training_sample(chunk, sr, emotion_label, confidence)
+        
+        timeline.append({
+            "start_sec": i * WINDOW_SIZE_SEC,
+            "end_sec": min((i + 1) * WINDOW_SIZE_SEC, duration),
+            "emotion": emotion_label,
+            "confidence": round(confidence, 4)
+        })
+    return timeline, original_duration, duration
 
+# --- UI HEADER ---
+st.title("VigilAudio")
+st.caption(f"Edge-Optimized Content Safety Engine (Limit: {MAX_DURATION_SEC}s)")
+st.markdown("---")
+
+# --- PLACEHOLDER FOR TOP BANNER ---
+alert_placeholder = st.empty()
+
+# --- TABS ---
+tab_upload, tab_mic = st.tabs(["Upload File", "Live Microphone"])
+
+audio_bytes = None
+source_key = "none"
+
+with tab_upload:
+    uploaded_file = st.file_uploader("Choose audio file", type=["wav", "mp3", "m4a"], key="upload_widget")
+    if uploaded_file:
+        audio_bytes = uploaded_file.getvalue()
+        source_key = "upload"
+
+with tab_mic:
+    recorded_audio = audio_recorder(text="Start Recording", icon_size="2x", key="mic_widget")
+    if recorded_audio:
+        audio_bytes = recorded_audio
+        source_key = "mic"
+
+# --- MAIN ANALYSIS TRIGGER ---
+if audio_bytes:
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
         tmp.write(audio_bytes)
         tmp_path = tmp.name
 
     st.audio(audio_bytes)
     
-    if st.button("Analyze Content", key=f"btn_{source_name}", type="primary", use_container_width=True):
-        with st.spinner("Analyzing audio context..."):
-            y, sr = librosa.load(tmp_path, sr=16000)
-            original_duration = librosa.get_duration(y=y, sr=sr)
+    if st.button("Analyze Content", key=f"analyze_{source_key}", type="primary", use_container_width=True):
+        with st.spinner("Analyzing..."):
+            timeline, orig_dur, final_dur = run_inference(tmp_path)
             
-            if original_duration > MAX_DURATION_SEC:
-                st.warning(f"Long audio detected ({original_duration:.1f}s). Analyzing only the first {MAX_DURATION_SEC} seconds.")
-                y = y[:int(MAX_DURATION_SEC * sr)]
-            
-            duration = librosa.get_duration(y=y, sr=sr)
-            timeline = []
-            chunk_len = int(WINDOW_SIZE_SEC * sr)
-            
-            for i, start in enumerate(range(0, len(y), chunk_len)):
-                chunk = y[start:start + chunk_len]
-                if len(chunk) < 8000:
-                    continue
+            if timeline:
+                # 1. Moderation Check
+                flagged_emotions = ['angry', 'fearful', 'disgusted', 'surprised']
+                is_flagged = any(seg['emotion'] in flagged_emotions and seg['confidence'] > 0.60 for seg in timeline)
                 
-                inputs = feature_extractor(chunk, sampling_rate=16000, return_tensors="pt", padding=True)
-                with torch.no_grad():
-                    outputs = model(**inputs)
-                    logits = outputs.logits
-                    probs = torch.nn.functional.softmax(logits, dim=-1)
-                    pred_id = torch.argmax(logits, dim=-1).item()
-                    confidence = float(probs[0][pred_id])
-                
-                emotion_label = id2label[pred_id]
-                if confidence < 0.60:
-                    save_training_sample(chunk, sr, emotion_label, confidence)
-                
-                timeline.append({
-                    "start_sec": i * WINDOW_SIZE_SEC,
-                    "end_sec": min((i + 1) * WINDOW_SIZE_SEC, duration),
-                    "emotion": emotion_label,
-                    "confidence": round(confidence, 4)
-                })
+                if is_flagged:
+                    alert_placeholder.markdown("""
+                        <div class="alert-banner">
+                            MODERATION ALERT: High-intensity negative sentiment detected. Human review recommended.
+                        </div>
+                    """, unsafe_allow_html=True)
 
-            if not timeline:
-                st.error("Audio too short for analysis.")
-            else:
-                flagged = any(seg['emotion'] in ['angry', 'fearful', 'disgusted'] and seg['confidence'] > 0.85 for seg in timeline)
-                if flagged:
-                    st.markdown('<div class="alert-banner">MODERATION ALERT: High-intensity negative sentiment detected.</div>', unsafe_allow_html=True)
+                if orig_dur > MAX_DURATION_SEC:
+                    st.warning(f"Long audio detected ({orig_dur:.1f}s). Analyzed first {MAX_DURATION_SEC} seconds.")
 
+                # 2. Results Layout
                 col1, col2 = st.columns([1, 2])
                 color_map = {"angry": "#f48771", "happy": "#89d185", "sad": "#4fc1ff", "fearful": "#c586c0", "disgusted": "#ce9178", "neutral": "#808080", "suprised": "#dcdcaa"}
-                
                 emotions = [s["emotion"] for s in timeline]
                 dominant = max(set(emotions), key=emotions.count)
                 
@@ -129,37 +160,13 @@ def process_audio(audio_bytes, source_name):
                 with col2:
                     st.subheader("Confidence Timeline")
                     df = pd.DataFrame(timeline)
-                    fig = px.bar(df, x="start_sec", y="confidence", color="emotion", color_discrete_map=color_map, labels={"start_sec": "Time (s)", "confidence": "Confidence"})
-                    fig.update_layout(template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=0, r=0, t=0, b=0), height=300)
-                    st.plotly_chart(fig, use_container_width=True)
+                    fig_timeline = px.bar(df, x="start_sec", y="confidence", color="emotion", color_discrete_map=color_map, labels={"start_sec": "Time (s)", "confidence": "Confidence"})
+                    fig_timeline.update_layout(template="plotly_dark", plot_bgcolor='rgba(0,0,0,0)', paper_bgcolor='rgba(0,0,0,0)', margin=dict(l=0, r=0, t=0, b=0), height=300)
+                    st.plotly_chart(fig_timeline, use_container_width=True)
 
                 with st.expander("Detailed System Logs"):
-                    st.json({
-                        "filename": source_name,
-                        "duration": duration,
-                        "dominant_emotion": dominant,
-                        "is_truncated": original_duration > MAX_DURATION_SEC,
-                        "timeline": timeline
-                    })
+                    st.json({"filename": source_key, "duration": final_dur, "timeline": timeline})
 
     os.remove(tmp_path)
-
-# --- UI HEADER ---
-st.title("VigilAudio")
-st.caption(f"Edge-Optimized Content Safety Engine (Limit: {MAX_DURATION_SEC}s)")
-st.markdown("---")
-
-# --- TABS ---
-tab_upload, tab_mic = st.tabs(["Upload File", "Live Microphone"])
-
-with tab_upload:
-    st.write("### Analysis from File")
-    uploaded_file = st.file_uploader("Choose audio file", type=["wav", "mp3", "m4a"], key="upload_widget")
-    if uploaded_file:
-        process_audio(uploaded_file.getvalue(), uploaded_file.name)
-
-with tab_mic:
-    st.write("### Live Analysis")
-    recorded_audio = audio_recorder(text="Start Recording", icon_size="2x", key="mic_widget")
-    if recorded_audio:
-        process_audio(recorded_audio, "mic_recording.wav")
+else:
+    st.info("System standby. Please provide audio content via upload or microphone.")
